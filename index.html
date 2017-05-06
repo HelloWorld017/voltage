@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+			body {
+				background: url(/app/skin/background/desert/default.jpg);
+				background-repeat: no-repeat;
+				background-size: cover;
+				/*overflow: hidden; */
+				width: 100vw;
+				height: 100vh;
+				padding: 0;
+				margin: 0;
+			}
+
+			.notes {
+				position: fixed;
+				left: 50%;
+				bottom: 0;
+				transform-style: preserve-3d;
+				transform-origin: center bottom;
+				transform: translateY(-50px) translateX(-50%) perspective(2000px) rotateX(70deg);
+			}
+
+			.hud {
+				position: fixed;
+				bottom: 50px;
+				left: 50%;
+				transform: translate(-50%, 0);
+			}
+		</style>
+	</head>
+	<body>
+		<canvas class="notes" width="512" height="10000"></canvas>
+		<canvas class="hud" width="512" height="600"></canvas>
+		<script src="/voltage.bundle.js"></script>
+	</body>
+</html>

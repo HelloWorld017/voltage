@@ -1,12 +1,21 @@
+import BTNote from "./bt-note";
+import BTLongNote from "./bt-long-note";
 import CalculatedMap from "./calculated-map";
+import EffectPoint from "./effect-point";
+import FXNote from "./fx-note";
+import FXLongNote from "./fx-long-note";
+import KnobCheckPoint from "./knob-checkpoint";
+import KnobNote from "./knob-note";
 import NodePoint from "./node-point";
 import NotePoint from "./note-point";
+import NotePos from "./note-pos";
 import SettingPoint from "./setting-point";
 
 const RegexPalette = {
 	line: /\r|\n|\r\n/g,
 	setting: /^(.*)=(.*)$/,
-	note: /^(.{4})\|(.{2})\|(.{2})$/,
+	note: /^(.{4})\|(.{2})\|(.{2})([@S][)>(<](?:(?:\d+;)*(?:\d+))?)?$/,
+	effect: /^([@S])([)>(<])((?:\d+;)*(?:\d+))?$/,
 	numericTempo: /^\d+$/,
 	beat: /^(\d+)\/(\d+)$/
 };
@@ -16,7 +25,8 @@ class NoteMap {
 		this.points = points;
 		this.nodes = [[]];
 		this.timings = [[]];
-		this.calculated = new CalculatedMap(5000);
+		this.pointsCalculated = new CalculatedMap(5000);
+		this.notesCalculated = new CalculatedMap(5000);
 
 		this.points.forEach((el, i) => {
 			el.setIndex(i);
@@ -32,7 +42,6 @@ class NoteMap {
 
 		this.nodes.forEach((arr) => {
 			let i = 0;
-			let notes = arr.filter((v) => v instanceof NotePoint);
 			arr.forEach((v) => {
 				v.setNodeLength(arr.length);
 				v.setNodeIndex(i);
@@ -47,7 +56,7 @@ class NoteMap {
 			return true;
 		}
 
-		const getTimingValue = (key, test, def) => timings.reduceRight((prev, v) => {
+		const getTimingValue = (key, test, def) => this.timings.reduceRight((prev, v) => {
 			return checkTimingValue(v, key, test) ? v[0].value :  prev;
 		}, def);
 
@@ -73,14 +82,121 @@ class NoteMap {
 			const msPerNode = (beat[0] / beat[1]) * (tempo / 60) * 1000;
 			arr.forEach((v) => {
 				v.setTiming(prev);
-				this.calculated.add(prev, v);
-				
+				this.pointsCalculated.add(prev, v);
+
 				if(v instanceof NotePoint) prev += msPerNode / v.nodeLength;
 			});
+
+			return prev;
 		}, 0);
+
+		const long = {};
+		const setting = {};
+
+		NotePos.POS_LIST.forEach((v) => long[v] = []);
+
+		this.points.forEach((v, i, arr) => {
+			let nextNote = undefined;
+			for(let j = i + 1; j < arr.length; j++){
+				if(arr[j] instanceof NotePoint){
+					nextNote = arr[j];
+					break;
+				}
+			}
+
+			if(v instanceof NotePoint) {
+				[
+					{
+						notes: 'bt',
+						posList: NotePos.BT_LIST,
+						shortNote: BTNote,
+						shortValue: '1',
+						longNote: BTLongNote,
+						longValue: '2',
+					},
+					{
+						notes: 'fx',
+						posList: NotePos.FX_LIST,
+						shortNote: FXNote,
+						shortValue: '2',
+						longNote: FXLongNote,
+						longValue: '1'
+					}
+				].forEach(({
+					notes,
+					posList,
+					shortNote,
+					shortValue,
+					longNote,
+					longValue
+				}) => {
+					posList.forEach((pos, i) => {
+						if(v[notes][i] === shortValue) {
+							this.notesCalculated.add(
+								v.timing,
+								new shortNote(v.timing, v, pos)
+							);
+						}else if(v[notes][i] === longValue){
+							let noteList = long[pos];
+
+							noteList.push(v);
+							if(nextNote[notes][i] !== 2){
+								this.notesCalculated.add(
+									noteList[0].timing,
+									new longNote(
+										noteList[0].timing,
+										noteList[noteList.length - 1].timing,
+										noteList,
+										pos
+									)
+								);
+
+								long[pos] = [];
+							}
+						}
+					});
+				});
+
+				const KNOB_RANGE = ['laserrange_l', 'laserrange_r'];
+
+				NotePos.KNOB_LIST.forEach((pos, i) => {
+					if(v.knob[i] === '-') return;
+					if(!long[pos].checkpoints) long[pos] = {
+						checkpoints: [],
+						points: []
+					};
+
+					const noteList = long[pos];
+					noteList.points.push(v);
+					if(v.knob[i] !== ':') noteList.checkpoints.push(
+						new KnobCheckPoint(
+							v.timing,
+							v.knob[i],
+							setting[KNOB_RANGE[i]] === '2x'
+						)
+					);
+
+					if(nextNote.knob[i] === '-') {
+						this.notesCalculated.add(
+							noteList.points[0].timing,
+							new KnobNote(
+								noteList.points[0].timing,
+								noteList.points[noteList.points.length - 1].timing,
+								noteList.points,
+								pos,
+								noteList.checkpoints
+							)
+						);
+					}
+				});
+
+			}else if(v instanceof SettingPoint){
+				setting[v.key] = v.value;
+			}
+		});
 	}
 
-	const compile(mapText){
+	static compile(mapText){
 		return new NoteMap(
 			mapText.split(RegexPalette.line)
 			.map((v) => {
@@ -94,12 +210,38 @@ class NoteMap {
 				}
 
 				if((match = v.match(RegexPalette.note))){
-					return new NotePoint(match[1].split(''), match[2].split(''), match[3].split(''));
+					const note = new NotePoint(match[1].split(''), match[2].split(''), match[3].split(''));
+
+					if(match[4]){
+						const effectMatch = match[4].match(RegexPalette.effect);
+
+						let type = undefined;
+						if(effectMatch[1] === 's' || effectMatch[1] === 'S'){
+							type = EffectPoint.TYPE_SPRING;
+						}else if(effectMatch[2] === '>' || effectMatch[2] === '<'){
+							type = EffectPoint.TYPE_RETURN;
+						} else type = EffectPoint.TYPE_NORMAL;
+
+						let direction =
+							(effectMatch[2] === ')' || effectMatch[2] === '<') ?
+							EffectPoint.DIRECTION_FINISH_RIGHT :
+							EffectPoint.DIRECTION_FINISH_LEFT;
+
+						return [
+							note,
+							new EffectPoint(
+								type,
+								direction,
+								effectMatch[3].split(';').map((v) => parseInt(v))
+							)
+						];
+					}else return note;
 				}
 
 				return;
 			})
 			.filter((v) => v !== undefined)
+			.reduce((prev, curr) => prev.concat(curr), [])
 		);
 	}
 }
