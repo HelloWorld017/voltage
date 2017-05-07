@@ -1,10 +1,16 @@
 import Color from "color";
 import SkinSetting from "../../skin/skin-setting.json";
+import NoteMap from "../notemap/";
+
+const FUTURE_SEEING = 5000;
 
 class NoteRenderer {
-	constructor(canvas, assetLoader) {
+	constructor(canvas, assetLoader, notemap, options) {
 		this.canvas = canvas;
 		this.assets = assetLoader;
+		this.map = notemap;
+		this.setting = {};
+		this.options = options;
 		this.skinSetting = SkinSetting;
 		this.ctx = this.canvas.getContext('2d');
 		this.bgCanvas = document.createElement('canvas');
@@ -12,6 +18,9 @@ class NoteRenderer {
 		this.bgCanvas.height = canvas.height;
 		this.bgCtx = this.bgCanvas.getContext('2d');
 		this.renderTick = 0;
+		this.realTick = 0;
+		this.ongoingObjects = [];
+		this.multiplier = 1;
 
 		this.renderBG();
 	}
@@ -20,6 +29,7 @@ class NoteRenderer {
 		this.runOnMainContext(async (ctx, canvas) => {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			ctx.drawImage(this.bgCanvas, 0, 0);
+			//TODO get notes and render on height - currentheight
 			requestAnimationFrame(() => this.render());
 		});
 	}
@@ -83,7 +93,37 @@ class NoteRenderer {
 	}
 
 	updateRenderTick(){
+		this.renderTick += this.multiplier;
+		this.realTick++;
+		const settingMap =
+			this.map.pointsCalculated.getChunkArray(this.realTiming, FUTURE_SEEING);
 
+		//TODO update setting
+	}
+
+	get currentScrolledHeight(){
+		return this.renderTick / (20 * 60) *
+			this.currentTempo *
+			this.options.speed *
+			(this.canvas.height / NoteMap.BEAT_SPEED);
+	}
+
+	get currentTiming(){
+		return this.renderTick / 20 * 1000;
+	}
+
+	get realTiming(){
+		return this.realTick / 20 * 1000;
+	}
+
+	get currentTempo(){
+		const timing = this.currentTiming;
+
+		return parseInt(this.map.tempo.find((v, k, arr) => {
+			if(v.timing < timing && !arr[k + 1]) return true;
+			if(v.timing <= timing && timing < arr[k + 1].timing) return true;
+			return false;
+		}).value);
 	}
 
 	async runOnBGContext(func){

@@ -63,6 +63,26 @@ class CalculatedMap {
 				if(keys[j] >= start && keys[j] <= end)
 					result[keys[j]] = this.maps[i][keys[j]];
 		}
+
+		return result;
+	}
+
+	getChunkArray(start, length) {
+		const end = start + length;
+
+		const startGrade = this.getGrade(start);
+		const endGrade = this.getGrade(end);
+		const result = [];
+
+		for(let i = startGrade; i <= endGrade; i++){
+			const keys = Object.keys(this.map[i]);
+
+			for(let j = 0; j < keys.length; j++)
+				if(keys[j] >= start && keys[j] <= end)
+					result.push(...this.maps[i][keys[j]]);
+		}
+
+		return result;
 	}
 }
 

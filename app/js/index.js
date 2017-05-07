@@ -12,14 +12,14 @@ class SDVXGame {
 		await this.loader.loadAssets(SkinList);
 		this.hudRenderer = new HudRenderer(document.querySelector('.hud'), this.loader);
 		this.hudRenderer.render();
-		
+
 		this.renderer = new NoteRenderer(document.querySelector('.notes'), this.loader);
 		this.renderer.render();
 		this.tick();
 	}
 
 	tick(){
-		this.renderer.renderTick++;
+		this.renderer.updateRenderTick();
 		setTimeout(() => this.tick, 50);
 	}
 }

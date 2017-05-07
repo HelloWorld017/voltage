@@ -27,6 +27,7 @@ class NoteMap {
 		this.timings = [[]];
 		this.pointsCalculated = new CalculatedMap(5000);
 		this.notesCalculated = new CalculatedMap(5000);
+		this.tempo = [];
 
 		this.points.forEach((el, i) => {
 			el.setIndex(i);
@@ -38,13 +39,21 @@ class NoteMap {
 				if(el.key === 't' || el.key === 'beat') this.timings.push([el]);
 				else this.timings[this.timings.length - 1].push(el);
 			}else this.timings[this.timings.length - 1].push(el);
+
+
+			if(el instanceof SettingPoint){
+				if(el.key === 'stop') this.points.splice(
+					i + el.value, 0, new SettingPoint('stopend', el.value)
+				);
+			}
 		});
 
 		this.nodes.forEach((arr) => {
 			let i = 0;
-			arr.forEach((v) => {
+			arr.forEach((v, k) => {
 				v.setNodeLength(arr.length);
 				v.setNodeIndex(i);
+				v.setIndexOfNode(k);
 
 				if(v instanceof NotePoint) i++;
 			});
@@ -90,10 +99,18 @@ class NoteMap {
 			return prev;
 		}, 0);
 
+		this.timings.reduce((prev, arr) => {
+			const tempo = checkTimingValue(arr, 't', RegexPalette.numericTempo);
+			if(tempo) this.tempo.push(arr[0]);
+		});
+
 		const long = {};
 		const setting = {};
 
 		NotePos.POS_LIST.forEach((v) => long[v] = []);
+		let offset = 0;
+		let isVanishing = false;
+		let vanishStart = undefined;
 
 		this.points.forEach((v, i, arr) => {
 			let nextNote = undefined;
@@ -103,6 +120,21 @@ class NoteMap {
 					break;
 				}
 			}
+
+			if(isVanishing){
+				v.setVanishment(vanishStart);
+			}
+
+			if(v instanceof SettingPoint && v.key === 'stop'){
+				isVanishing = true;
+				vanishStart = v.nodes;
+			}
+
+			if(v instanceof SettingPoint && v.key === 'stopend'){
+				offset += v.value / v.nodeLength;
+			}
+
+			v.setRenderHeightOffset(offset);
 
 			if(v instanceof NotePoint) {
 				[
@@ -243,6 +275,10 @@ class NoteMap {
 			.filter((v) => v !== undefined)
 			.reduce((prev, curr) => prev.concat(curr), [])
 		);
+	}
+
+	static get BEAT_SPEED(){
+		return 8;
 	}
 }
 
