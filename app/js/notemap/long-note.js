@@ -9,6 +9,14 @@ class LongNote {
 	get length(){
 		return this.end - this.start;
 	}
+
+	get first(){
+		return this.points[0];
+	}
+
+	get last(){
+		return this.points[this.points.length - 1];
+	}
 }
 
 export default LongNote;

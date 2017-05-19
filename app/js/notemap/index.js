@@ -32,7 +32,7 @@ class NoteMap {
 		this.points.forEach((el, i) => {
 			el.setIndex(i);
 
-			if(el instanceof NodePoint) this.nodes.push([]);
+			if(el instanceof NodePoint) this.nodes.push([el]);
 			else this.nodes[this.nodes.length - 1].push(el);
 
 			if(el instanceof SettingPoint){
@@ -48,10 +48,11 @@ class NoteMap {
 			}
 		});
 
-		this.nodes.forEach((arr) => {
+		this.nodes.forEach((arr, k) => {
+			const len = arr.filter((v) => v instanceof NotePoint).length;
 			let i = 0;
-			arr.forEach((v, k) => {
-				v.setNodeLength(arr.length);
+			arr.forEach((v) => {
+				v.setNodeLength(len);
 				v.setNodeIndex(i);
 				v.setIndexOfNode(k);
 
@@ -88,7 +89,7 @@ class NoteMap {
 			beat = checkTimingValue(arr, 'beat', RegexPalette.beat) ?
 				parseBeat(arr[0].value) : beat;
 
-			const msPerNode = (beat[0] / beat[1]) * (tempo / 60) * 1000;
+			const msPerNode = (beat[0] / beat[1]) * (240 / tempo) * 1000;
 			arr.forEach((v) => {
 				v.setTiming(prev);
 				this.pointsCalculated.add(prev, v);
@@ -172,7 +173,7 @@ class NoteMap {
 							let noteList = long[pos];
 
 							noteList.push(v);
-							if(nextNote[notes][i] !== 2){
+							if(nextNote[notes][i] !== longValue){
 								this.notesCalculated.add(
 									noteList[0].timing,
 									new longNote(
@@ -204,7 +205,8 @@ class NoteMap {
 						new KnobCheckPoint(
 							v.timing,
 							v.knob[i],
-							setting[KNOB_RANGE[i]] === '2x'
+							setting[KNOB_RANGE[i]] === '2x',
+							v
 						)
 					);
 
@@ -219,6 +221,8 @@ class NoteMap {
 								noteList.checkpoints
 							)
 						);
+
+						long[pos] = {};
 					}
 				});
 

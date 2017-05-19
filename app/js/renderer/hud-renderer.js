@@ -1,8 +1,8 @@
 import AssetLoader from "../assets/asset-loader";
 
 class HudRenderer{
-	constructor(canvas, assetLoader){
-		this.assets = assetLoader;
+	constructor(canvas, game){
+		this.assets = game.loader;
 		this.canvas = canvas;
 		this.ctx = canvas.getContext('2d');
 	}
@@ -14,7 +14,7 @@ class HudRenderer{
 			ctx.drawImage(img, 0, canvas.height - 50, canvas.width, img.height / img.width * canvas.width);
 		});
 
-		requestAnimationFrame(() => this.render());
+		//requestAnimationFrame(async () => await this.render());
 	}
 
 	async runOnMainContext(func){

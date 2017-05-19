@@ -25,6 +25,7 @@ class Point {
 
 	get nodes(){
 		if(this.vanished) return this.vanishStart;
+		if(this.nodeLength === 0) return this.indexOfNode;
 		return this.indexOfNode + this.nodeIndex / this.nodeLength - this.offset;
 	}
 
